@@ -5,14 +5,16 @@ from datetime import datetime, timezone, timedelta
 
 api_key = "SUdMkOldiHZ69WlZBwteQlMCgJtYLKoX"
 api_secret = "eS0DRC5jRuasfK6Z"
+database = r"./db.db"
 
 
 def get_timestamp():
      now = datetime.now(tz=timezone.utc)
      return now.isoformat().split('.')[0]
 
+
 def select(**kwargs):
-     conn = sqlite3.connect(r"./db.db")
+     conn = sqlite3.connect(database)
      cursor = conn.cursor()
 
      _fields = kwargs.get('fields', '*')
@@ -44,7 +46,7 @@ def select(**kwargs):
 def insert(**kwargs):
      _table = kwargs.get('table')
      _data = kwargs.get('data')
-     conn = sqlite3.connect(r"./db.db")
+     conn = sqlite3.connect(database)
 
      columns = []
      rows = []
@@ -69,28 +71,18 @@ def insert(**kwargs):
           query_rows.append("(" + ','.join(quoted_items) + ")")
 
      query = f"""INSERT INTO `{_table}` ({query_columns}) VALUES {','.join(query_rows)}"""
-     conn.execute(query)
+     r = conn.execute(query).lastrowid
 
      conn.commit()
      conn.close()
 
+     return r
 
 def get_stored_auth():
      return select(fields=['access_token'],
                    table='auth',
                    where=[f"expires_at > '{get_timestamp()}'"])[0]
 
-# def get_stored_auth():
-#      conn = sqlite3.connect(r"./db.db")
-#      cursor = conn.cursor()
-#      cursor.execute(f"""SELECT access_token FROM `auth` WHERE expires_at > '{get_timestamp()}' LIMIT 1""")
-
-#      output = cursor.fetchall()
-
-#      conn.commit()
-#      conn.close()
-
-#      return output[0][0]
 
 def get_new_auth():
      url = "https://test.api.amadeus.com/v1/security/oauth2/token"
@@ -118,38 +110,6 @@ def get_new_auth():
           "access_token": access_token,
           "expires_at": expires_at
      }
-     insert(table='auth',
-            data=data)
+     return insert(table='auth', data=data)
 
      return access_token
-
-
-# def get_new_auth():
-#      url = "https://test.api.amadeus.com/v1/security/oauth2/token"
-#      headers = {
-#           "Content-Type": "application/x-www-form-urlencoded"
-#      }
-#      params = {
-#           "grant_type": "client_credentials",
-#           "client_id": api_key,
-#           "client_secret": api_secret
-#      }
-
-#      r = requests.post(url, data=params, headers=headers)
-#      response = r.json()
-#      conn = sqlite3.connect(r"./db.db")
-
-#      now = datetime.now(tz=timezone.utc)
-#      expires_at = now + timedelta(seconds=response['expires_in'])
-
-#      expires_at = expires_at.isoformat().split('.')[0]
-#      client_id = response['client_id']
-#      access_token = response['access_token']
-
-#      conn.execute(f"""INSERT INTO `auth` (client_id, access_token, expires_at) VALUES ('{client_id}', '{access_token}', '{expires_at}')""")
-
-#      conn.commit()
-#      conn.close()
-
-#      return response
-

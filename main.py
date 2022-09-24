@@ -8,9 +8,20 @@ def get_timestamp():
     now = datetime.now(tz=timezone.utc)
     return now.isoformat().split('.')[0]
 
-url = "http://test.api.amadeus.com"
+# url = "http://test.api.amadeus.com"
 api_key = get_stored_auth()
-url = "https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode=MNL&destinationLocationCode=BKK&departureDate=2022-11-01&adults=1&nonStop=false&max=250"
+
+origin = "MNL"
+destination = "ALA"
+departure = "2022-11-01"
+
+url = "https://test.api.amadeus.com/v2/shopping/flight-offers?" \
+    f"originLocationCode={origin}&" \
+    f"destinationLocationCode={destination}&" \
+    f"departureDate={departure}&" \
+    "adults=1&" \
+    "nonStop=false&" \
+    "max=250"
 
 headers = {
     "accept": "application/vnd.amadeus+json",
@@ -21,6 +32,13 @@ r = requests.get(url, headers=headers)
 response = r.json()
 
 for flight in response.get('data'):
+    price = flight.get('price')
+    data = {
+        "price": price['total'],
+        "currency": price['currency']
+    }
+    ticket_id = insert(table='tickets', data=data)
+
     for segment in flight['itineraries'][0]['segments']:
         departure = segment['departure']['at']
         arrival = segment['arrival']['at']
@@ -48,7 +66,10 @@ for flight in response.get('data'):
                 "arrive_code": arrive_code,
                 "airline": airline,
                 "aircraft": aircraft,
-                "last_updated": get_timestamp()
+                "last_updated": get_timestamp(),
+                "ticket_id": ticket_id
             }
             insert(table='flights',
                    data=data)
+
+print(response)
